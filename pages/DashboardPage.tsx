@@ -1,14 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { busService } from '../services/busService';
-// Fix: Booking is a type from types.ts, while others are constants from constants.ts
 import { Booking } from '../types';
-import { STATIONS, MEALS, INITIAL_SEATS } from '../constants';
-import { Calendar, MapPin, User, Utensils, IndianRupee, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { STATIONS, MEALS } from '../constants';
+import { Calendar, MapPin, User, Utensils, IndianRupee, Trash2, CheckCircle, XCircle, Database, RefreshCw } from 'lucide-react';
 
 const DashboardPage: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dbStatus, setDbStatus] = useState<'Syncing' | 'Connected'>('Syncing');
 
   useEffect(() => {
     loadBookings();
@@ -16,9 +16,13 @@ const DashboardPage: React.FC = () => {
 
   const loadBookings = async () => {
     setLoading(true);
+    setDbStatus('Syncing');
     const history = await busService.getBookingHistory();
     setBookings([...history].reverse());
-    setLoading(false);
+    setTimeout(() => {
+        setLoading(false);
+        setDbStatus('Connected');
+    }, 400);
   };
 
   const handleCancel = async (id: string) => {
@@ -33,9 +37,12 @@ const DashboardPage: React.FC = () => {
   const getStationName = (id: string) => STATIONS.find(s => s.id === id)?.name || id;
   const getMealName = (id?: string) => MEALS.find(m => m.id === id)?.name || 'No meal';
 
-  if (loading) {
+  if (loading && bookings.length === 0) {
     return <div className="h-96 flex items-center justify-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex flex-col items-center gap-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <p className="text-slate-500 font-medium">Connecting to Database...</p>
+      </div>
     </div>;
   }
 
@@ -45,6 +52,16 @@ const DashboardPage: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">My Bookings</h1>
           <p className="text-slate-500">Manage your upcoming journeys and check ticket status.</p>
+        </div>
+        <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-sm">
+            <div className={`w-2 h-2 rounded-full ${dbStatus === 'Connected' ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`} />
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <Database size={14} /> 
+                Store: {dbStatus === 'Connected' ? 'Local Persistence' : 'Connecting...'}
+            </div>
+            <button onClick={loadBookings} className="ml-2 text-slate-400 hover:text-blue-600 transition-colors">
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            </button>
         </div>
       </div>
 
@@ -59,7 +76,7 @@ const DashboardPage: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 gap-6">
           {bookings.map((booking) => (
-            <div key={booking.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+            <div key={booking.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow group">
               <div className="p-6 md:p-8">
                 <div className="flex flex-col md:flex-row justify-between gap-6">
                   <div className="flex-1 space-y-4">
