@@ -1,10 +1,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { CheckCircle, Info, ChevronRight, Utensils, IndianRupee, User, BrainCircuit, Calendar, MapPin, AlertCircle, ShoppingCart, ArrowLeft, ArrowRight } from 'lucide-react';
+import { CheckCircle, Info, ChevronRight, Utensils, IndianRupee, User, BrainCircuit, Calendar, MapPin, AlertCircle, ShoppingCart, ArrowLeft, ArrowRight, Leaf, Bone, Heart, Bed, HelpCircle } from 'lucide-react';
 import { busService } from '../services/busService';
 import { predictConfirmationProbability } from '../services/mlService';
-// Fix: Import types from types.ts and values/constants from constants.ts
 import { Seat, BerthType, SeatStatus, Meal } from '../types';
 import { STATIONS } from '../constants';
 
@@ -18,6 +17,7 @@ const BookingPage: React.FC = () => {
   const [meals, setMeals] = useState<Meal[]>([]);
   const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null);
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
+  const [activeMealTab, setActiveMealTab] = useState<'All' | 'Veg' | 'Non-Veg' | 'Jain'>('All');
   const [passengerName, setPassengerName] = useState('');
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -51,6 +51,11 @@ const BookingPage: React.FC = () => {
       currentOccupancy: occupancy
     });
   }, [bookingDate, occupancy]);
+
+  const filteredMeals = useMemo(() => {
+    if (activeMealTab === 'All') return meals;
+    return meals.filter(m => m.category === activeMealTab);
+  }, [meals, activeMealTab]);
 
   const handleBooking = async () => {
     if (!selectedSeat || !passengerName.trim()) {
@@ -144,103 +149,221 @@ const BookingPage: React.FC = () => {
 
       {/* Step Contents */}
       {step === 1 && (
-        <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">Select Seat</h2>
-            <div className="flex gap-4 text-xs font-semibold">
-              <span className="flex items-center gap-1"><div className="w-3 h-3 bg-white border border-slate-300"></div> Available</span>
-              <span className="flex items-center gap-1"><div className="w-3 h-3 bg-slate-200"></div> Taken</span>
-              <span className="flex items-center gap-1"><div className="w-3 h-3 bg-blue-600"></div> Choice</span>
+        <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
+          <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900">Choose Your Comfort</h2>
+              <p className="text-sm text-slate-500">Select a berth from the layout below.</p>
+            </div>
+            <div className="flex flex-wrap gap-4 text-[10px] font-bold uppercase tracking-wider">
+              <span className="flex items-center gap-2 px-2 py-1 bg-white border border-slate-200 rounded-md">
+                <div className="w-2.5 h-2.5 bg-white border border-slate-300 rounded-sm"></div> Available
+              </span>
+              <span className="flex items-center gap-2 px-2 py-1 bg-slate-100 text-slate-400 border border-slate-200 rounded-md">
+                <div className="w-2.5 h-2.5 bg-slate-200 rounded-sm"></div> Occupied
+              </span>
+              <span className="flex items-center gap-2 px-2 py-1 bg-blue-50 text-blue-600 border border-blue-100 rounded-md">
+                <div className="w-2.5 h-2.5 bg-blue-600 rounded-sm"></div> Selected
+              </span>
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+            {/* Lower Deck */}
             <div className="space-y-4">
-              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Lower Deck</h3>
-              <div className="grid grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border-2 border-slate-100">
-                {lowerBerths.map(seat => (
-                  <button
-                    key={seat.id}
-                    disabled={seat.status === SeatStatus.OCCUPIED}
-                    onClick={() => setSelectedSeat(seat)}
-                    className={`h-12 flex items-center justify-center rounded-lg border-2 transition-all font-bold ${
-                      selectedSeat?.id === seat.id 
-                        ? 'bg-blue-600 border-blue-600 text-white scale-105' 
-                        : seat.status === SeatStatus.OCCUPIED 
-                          ? 'bg-slate-200 border-slate-200 text-slate-400 cursor-not-allowed'
-                          : 'bg-white border-slate-200 hover:border-blue-400 text-slate-700'
-                    }`}
-                  >
-                    {seat.number}
-                  </button>
-                ))}
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Lower Deck</h3>
+                <div className="group relative flex items-center gap-1.5 text-[10px] text-blue-500 font-bold bg-blue-50 px-2 py-1 rounded-full cursor-help">
+                  <HelpCircle size={12} /> Easy Access
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-white rounded-lg text-[10px] font-medium opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-xl">
+                    Ideal for elderly, children, or those who prefer not to climb. Near the exit.
+                  </div>
+                </div>
+              </div>
+              
+              <div className="relative p-6 bg-white rounded-3xl border-2 border-slate-100 shadow-sm">
+                {/* Bus Front Indicator */}
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-slate-100 text-slate-400 px-4 py-1 rounded-full text-[10px] font-bold border-2 border-white">
+                  FRONT / DRIVER
+                </div>
+                
+                <div className="grid grid-cols-3 gap-4 pt-2">
+                  {lowerBerths.map(seat => (
+                    <button
+                      key={seat.id}
+                      disabled={seat.status === SeatStatus.OCCUPIED}
+                      onClick={() => setSelectedSeat(seat)}
+                      className={`h-16 relative flex flex-col items-center justify-center rounded-xl border-2 transition-all group ${
+                        selectedSeat?.id === seat.id 
+                          ? 'bg-blue-600 border-blue-600 text-white scale-110 shadow-lg shadow-blue-500/30 ring-4 ring-blue-100' 
+                          : seat.status === SeatStatus.OCCUPIED 
+                            ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed opacity-60'
+                            : 'bg-white border-slate-100 hover:border-blue-400 hover:bg-blue-50 text-slate-700'
+                      }`}
+                    >
+                      <Bed size={14} className={`mb-1 ${selectedSeat?.id === seat.id ? 'text-blue-200' : 'text-slate-300 group-hover:text-blue-400'}`} />
+                      <span className="text-xs font-black">{seat.number}</span>
+                      {selectedSeat?.id === seat.id && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">
+                           <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-ping" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
+
+            {/* Upper Deck */}
             <div className="space-y-4">
-              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Upper Deck</h3>
-              <div className="grid grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border-2 border-slate-100">
-                {upperBerths.map(seat => (
-                  <button
-                    key={seat.id}
-                    disabled={seat.status === SeatStatus.OCCUPIED}
-                    onClick={() => setSelectedSeat(seat)}
-                    className={`h-12 flex items-center justify-center rounded-lg border-2 transition-all font-bold ${
-                      selectedSeat?.id === seat.id 
-                        ? 'bg-blue-600 border-blue-600 text-white scale-105' 
-                        : seat.status === SeatStatus.OCCUPIED 
-                          ? 'bg-slate-200 border-slate-200 text-slate-400 cursor-not-allowed'
-                          : 'bg-white border-slate-200 hover:border-blue-400 text-slate-700'
-                    }`}
-                  >
-                    {seat.number}
-                  </button>
-                ))}
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Upper Deck</h3>
+                <div className="group relative flex items-center gap-1.5 text-[10px] text-purple-500 font-bold bg-purple-50 px-2 py-1 rounded-full cursor-help">
+                  <HelpCircle size={12} /> Extra Privacy
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-white rounded-lg text-[10px] font-medium opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-xl">
+                    Better views and more privacy from the aisle. Recommended for solo travelers.
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative p-6 bg-white rounded-3xl border-2 border-slate-100 shadow-sm">
+                 {/* Bus Front Indicator */}
+                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-slate-100 text-slate-400 px-4 py-1 rounded-full text-[10px] font-bold border-2 border-white">
+                  FRONT / DRIVER
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 pt-2">
+                  {upperBerths.map(seat => (
+                    <button
+                      key={seat.id}
+                      disabled={seat.status === SeatStatus.OCCUPIED}
+                      onClick={() => setSelectedSeat(seat)}
+                      className={`h-16 relative flex flex-col items-center justify-center rounded-xl border-2 transition-all group ${
+                        selectedSeat?.id === seat.id 
+                          ? 'bg-blue-600 border-blue-600 text-white scale-110 shadow-lg shadow-blue-500/30 ring-4 ring-blue-100' 
+                          : seat.status === SeatStatus.OCCUPIED 
+                            ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed opacity-60'
+                            : 'bg-white border-slate-100 hover:border-blue-400 hover:bg-blue-50 text-slate-700'
+                      }`}
+                    >
+                      <Bed size={14} className={`mb-1 ${selectedSeat?.id === seat.id ? 'text-blue-200' : 'text-slate-300 group-hover:text-blue-400'}`} />
+                      <span className="text-xs font-black">{seat.number}</span>
+                      {selectedSeat?.id === seat.id && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">
+                           <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-ping" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="flex justify-end">
-            <button 
-              disabled={!selectedSeat}
-              onClick={() => setStep(2)}
-              className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl disabled:opacity-50 flex items-center gap-2 hover:bg-blue-700 transition-colors"
-            >
-              Continue to Meals <ArrowRight size={18} />
-            </button>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-6 bg-slate-900 rounded-3xl text-white shadow-xl shadow-slate-200">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
+                <Bed className="text-blue-400" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Selected Seat</p>
+                <p className="text-xl font-black">{selectedSeat ? `Seat ${selectedSeat.number}` : 'None selected'}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Base Fare</p>
+                <p className="text-xl font-black text-blue-400">₹{selectedSeat?.price || 0}</p>
+              </div>
+              <button 
+                disabled={!selectedSeat}
+                onClick={() => setStep(2)}
+                className="ml-4 px-8 py-4 bg-blue-600 text-white font-bold rounded-2xl disabled:opacity-50 flex items-center gap-2 hover:bg-blue-700 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-600/30"
+              >
+                Next: Meals <ArrowRight size={18} />
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {step === 2 && (
         <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
-          <h2 className="text-2xl font-bold">Select Meal Add-on</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {meals.map(meal => (
-              <div 
-                key={meal.id} 
-                onClick={() => setSelectedMeal(selectedMeal?.id === meal.id ? null : meal)}
-                className={`group cursor-pointer p-4 rounded-2xl border-2 transition-all ${
-                  selectedMeal?.id === meal.id ? 'border-blue-600 bg-blue-50/50' : 'border-slate-100 bg-white hover:border-blue-200'
-                }`}
-              >
-                <div className="flex gap-4">
-                  <img src={meal.image} alt={meal.name} className="w-24 h-24 rounded-xl object-cover" />
-                  <div className="flex-1 space-y-1">
-                    <div className="flex justify-between items-start">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                        meal.category === 'Veg' ? 'bg-green-100 text-green-700' : 
-                        meal.category === 'Jain' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
-                      }`}>
-                        {meal.category}
-                      </span>
-                      <span className="font-bold text-slate-900">₹{meal.price}</span>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <h2 className="text-2xl font-bold">Select Meal Add-on</h2>
+            
+            {/* Category Tabs */}
+            <div className="flex p-1 bg-slate-100 rounded-xl">
+              {(['All', 'Veg', 'Non-Veg', 'Jain'] as const).map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveMealTab(cat)}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${
+                    activeMealTab === cat 
+                      ? 'bg-white text-blue-600 shadow-sm' 
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  {cat === 'Veg' && <Leaf size={14} className="text-green-500" />}
+                  {cat === 'Non-Veg' && <Bone size={14} className="text-red-500" />}
+                  {cat === 'Jain' && <Heart size={14} className="text-blue-400" />}
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[400px]">
+            {filteredMeals.length > 0 ? (
+              filteredMeals.map(meal => (
+                <div 
+                  key={meal.id} 
+                  onClick={() => setSelectedMeal(selectedMeal?.id === meal.id ? null : meal)}
+                  className={`group relative cursor-pointer p-4 rounded-2xl border-2 transition-all hover:shadow-md ${
+                    selectedMeal?.id === meal.id ? 'border-blue-600 bg-blue-50/50' : 'border-slate-100 bg-white hover:border-blue-200'
+                  }`}
+                >
+                  {selectedMeal?.id === meal.id && (
+                    <div className="absolute -top-2 -right-2 bg-blue-600 text-white p-1 rounded-full shadow-lg z-10">
+                      <CheckCircle size={16} />
                     </div>
-                    <h3 className="font-bold text-slate-800">{meal.name}</h3>
-                    <p className="text-xs text-slate-500 line-clamp-2">{meal.description}</p>
+                  )}
+                  <div className="flex gap-4">
+                    <div className="relative w-24 h-24 flex-shrink-0">
+                      <img src={meal.image} alt={meal.name} className="w-full h-full rounded-xl object-cover" />
+                      <div className="absolute top-1 left-1">
+                        <span className={`w-3 h-3 rounded-sm border flex items-center justify-center p-0.5 ${
+                          meal.category === 'Non-Veg' ? 'border-red-600' : 'border-green-600'
+                        }`}>
+                          <div className={`w-full h-full rounded-full ${
+                            meal.category === 'Non-Veg' ? 'bg-red-600' : 'bg-green-600'
+                          }`} />
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <div className="flex justify-between items-start">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                          meal.category === 'Veg' ? 'bg-green-100 text-green-700' : 
+                          meal.category === 'Jain' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {meal.category}
+                        </span>
+                        <span className="font-bold text-slate-900">₹{meal.price}</span>
+                      </div>
+                      <h3 className="font-bold text-slate-800">{meal.name}</h3>
+                      <p className="text-xs text-slate-500 line-clamp-2">{meal.description}</p>
+                    </div>
                   </div>
                 </div>
+              ))
+            ) : (
+              <div className="col-span-full flex flex-col items-center justify-center text-slate-400 py-12">
+                <Utensils size={48} className="mb-4 opacity-20" />
+                <p className="font-medium">No meals found in this category</p>
               </div>
-            ))}
+            )}
           </div>
           
           <div className="flex justify-between items-center mt-8">

@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Link } from 'react-router-dom';
 import { BusFront, ClipboardList, LayoutDashboard, Info, User, ChevronRight, Menu, X } from 'lucide-react';
 import BookingPage from './pages/BookingPage';
 import DashboardPage from './pages/DashboardPage';
 import HomePage from './pages/HomePage';
 import DocsPage from './pages/DocsPage';
+import AIAssistant from './components/AIAssistant';
 
 const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const navItems = [
@@ -93,6 +94,9 @@ const App: React.FC = () => {
               <Route path="/docs" element={<DocsPage />} />
             </Routes>
           </div>
+          
+          {/* AI Assistant FAB and Chat Window */}
+          <AIAssistant />
         </main>
       </div>
     </HashRouter>
