@@ -1,6 +1,6 @@
 
 import { INITIAL_SEATS, STATIONS, MEALS } from '../constants';
-import { Seat, Booking, SeatStatus, Meal } from '../types';
+import { Seat, Booking, SeatStatus, Meal, Station } from '../types';
 
 const DB_KEY = 'sleeper_swift_db';
 const SEATS_KEY = 'sleeper_swift_seats';
@@ -51,20 +51,24 @@ class BusService {
     });
   }
 
+  async getStations(): Promise<Station[]> {
+    return new Promise((resolve) => {
+      setTimeout(() => resolve([...STATIONS]), 150);
+    });
+  }
+
   async getSeats(): Promise<Seat[]> {
     return new Promise((resolve) => {
       setTimeout(() => resolve([...this.seats]), 300);
     });
   }
 
-  // Fetches the list of available meals from the constant data
   async getMeals(): Promise<Meal[]> {
     return new Promise((resolve) => {
       setTimeout(() => resolve([...MEALS]), 200);
     });
   }
 
-  // Admin: Update seat status manually
   async updateSeatStatus(seatId: string, status: SeatStatus): Promise<void> {
     const index = this.seats.findIndex(s => s.id === seatId);
     if (index !== -1) {
@@ -73,7 +77,6 @@ class BusService {
     }
   }
 
-  // Admin: Clear all system data
   async resetSystem(): Promise<void> {
     this.bookings = [];
     this.seats = [...INITIAL_SEATS];

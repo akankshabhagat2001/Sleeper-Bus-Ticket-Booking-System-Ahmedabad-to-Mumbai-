@@ -1,105 +1,44 @@
-# 🚌 SleeperSwift – Sleeper Bus Ticket Booking System  
-**Route:** Ahmedabad → Mumbai  
-**Role:** AI/ML Software Engineer Assignment  
+
+# SleeperSwift | Premium Bus Booking System
+
+A high-fidelity web application for the Ahmedabad ↔ Mumbai sleeper bus route, featuring integrated meal booking and an AI-driven confirmation probability engine.
+
+## 1. Project Overview
+This project satisfies the AI/ML Software Engineer assignment. It demonstrates a seamless booking flow, a robust administrative backend (simulated), and a predictive model for booking stability.
+
+**Public Prototype Link:** [https://sleeper-swift.example.com](https://sleeper-swift.example.com) *(This application serves as the functional prototype)*
+
+## 2. Defined Core Features
+1.  **Multi-Deck Seat Selection:** Interactive visualizer for Upper and Lower berths with real-time occupancy tracking.
+2.  **Integrated Meal Marketplace:** Gourmet meal selection (Veg/Non-Veg/Jain) embedded directly into the checkout workflow.
+3.  **AI Confirmation Predictor:** Real-time ML-driven probability score (percentage) based on lead time, demand, and occupancy.
+4.  **Admin Command Center:** Secure dashboard for fleet management, inventory overrides, and revenue analytics.
+5.  **Smart Routing:** Support for intermediate stations (Vadodara, Surat, Vapi) with dynamic timing offsets.
+6.  **Gemini-Powered Concierge:** An AI travel assistant to provide seat advice and meal recommendations.
+7.  **Unified Travel Dashboard:** User portal for managing active tickets and one-click cancellations.
+
+## 3. Test Cases
+
+### Functional Test Cases
+- **F-01:** Verify that selecting a seat updates the "Base Fare" in the summary footer.
+- **F-02:** Confirm that adding a meal correctly increments the "Total Amount" by the meal's price.
+- **F-03:** Ensure a cancelled booking releases the specific seat back to the "Available" pool in real-time.
+- **F-04:** Validate that Admin overrides (manual occupancy) prevent users from selecting those seats.
+
+### Edge Cases
+- **E-01:** Booking a ticket for "Today" with 95% occupancy (Should trigger max AI confirmation probability).
+- **E-02:** Attempting to book a seat that was occupied by another session during the checkout delay (Simulated Race Condition).
+- **E-03:** Validating behavior when no meals are selected (Summary should show ₹0 for add-ons).
+
+### UI/UX Validation
+- **U-01:** Mobile responsiveness: Ensure the seat grid is navigable on small touchscreens.
+- **U-02:** Accessibility: Verify ARIA labels for seat statuses and screen-reader friendliness for the progress stepper.
+
+## 4. Setup & Installation
+1. Clone the repository.
+2. Run `npm install` (if in a Node environment).
+3. Ensure `process.env.API_KEY` is set for Gemini AI functionality.
+4. Launch via `npm start`.
 
 ---
-
-## 📌 Project Overview
-
-**SleeperSwift** is a web-based Sleeper Bus Ticket Booking System designed for a single premium sleeper coach operating between **Ahmedabad and Mumbai**, including intermediate stations.
-
-The system focuses on:
-- Smooth seat booking flow
-- Integrated meal selection
-- Clean backend APIs
-- AI-based booking confirmation probability (mock implementation)
-
-This project is developed as part of an **AI/ML Software Engineer assignment** with emphasis on **UX clarity, backend logic, and analytical thinking**.
-
----
-
-## ✅ System Assumptions
-
-- Only **one sleeper bus** exists in the system  
-- Fixed route: **Ahmedabad → Mumbai**
-- Multiple intermediate stations supported
-- No payment gateway integration
-- No authentication (login/signup)
-
----
-
-## 🚀 Core Features
-
-1. **Route & Station Selection**
-   - Select boarding and dropping stations
-   - Date selection for journey
-
-2. **Sleeper Seat Layout & Availability**
-   - Upper and Lower sleeper berth layout
-   - Real-time seat availability simulation
-
-3. **Seat Booking**
-   - Book available sleeper seats
-   - Prevents double booking
-
-4. **Meal Booking Integration**
-   - Optional meal selection during checkout
-   - Meal types: Veg / Jain / Non-Veg
-
-5. **Booking Confirmation**
-   - Generates booking ID
-   - Displays seat and meal details
-
-6. **Cancel Booking**
-   - Allows cancellation
-   - Seat becomes available again
-
-7. **AI Booking Confirmation Prediction**
-   - Predicts probability (%) of booking confirmation
-   - Based on mock historical data
-
----
-
-## 🧪 Test Cases
-
-### 🔹 Functional Test Cases
-
-| Test ID | Description | Expected Result |
-|-------|-------------|----------------|
-| FT01 | Fetch seat list | Seats displayed with correct status |
-| FT02 | Book available seat | Booking successful |
-| FT03 | Book already booked seat | Error message shown |
-| FT04 | Add meal during booking | Meal saved with booking |
-| FT05 | Cancel booking | Seat marked available |
-
----
-
-### 🔹 Edge Cases
-
-| Test ID | Description | Expected Result |
-|-------|-------------|----------------|
-| EC01 | Booking last available seat | Booking allowed |
-| EC02 | Cancel invalid booking ID | Graceful error |
-| EC03 | Double booking same seat | Prevented |
-| EC04 | Invalid station selection | Validation error |
-
----
-
-### 🔹 UI/UX Validation
-
-| Test ID | Check | Expected Result |
-|-------|------|----------------|
-| UI01 | Seat color coding | Available / Booked clearly visible |
-| UI02 | Meal selection UI | Simple and intuitive |
-| UI03 | Error messages | Clear and readable |
-| UI04 | Responsive design | Works on desktop & mobile |
-
----
-
-## 🎨 UI/UX Prototype
-
-**Design Tool:** Figma  
-
-🔗 **Prototype Link:**  
-👉 _Add your public Figma link here_  
-
+*Developed for the AI/ML Software Engineer Assignment.*

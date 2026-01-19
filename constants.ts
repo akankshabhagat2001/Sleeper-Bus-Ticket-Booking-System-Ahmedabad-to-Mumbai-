@@ -39,7 +39,7 @@ export const MEALS: Meal[] = [
     name: 'Classic Gujarati Thali',
     description: 'Rotli, Dal, Shaak, Rice, and Sweet. Authentic local taste.',
     price: 250,
-    image: 'https://picsum.photos/seed/thali/400/300',
+    image: 'https://share.google/images/krbtfsGlQyBEcA6RQ',
     category: 'Veg'
   },
   {
@@ -47,7 +47,7 @@ export const MEALS: Meal[] = [
     name: 'Mumbai Pav Bhaji',
     description: 'Buttery spicy mash served with two soft pavs.',
     price: 180,
-    image: 'https://picsum.photos/seed/pavbhaji/400/300',
+    image: 'https://images.unsplash.com/photo-1626132646529-500337552978?auto=format&fit=crop&q=80&w=800',
     category: 'Veg'
   },
   {
@@ -55,7 +55,7 @@ export const MEALS: Meal[] = [
     name: 'Butter Chicken Meal',
     description: 'Creamy butter chicken with 2 butter naans.',
     price: 320,
-    image: 'https://picsum.photos/seed/chicken/400/300',
+    image: 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?auto=format&fit=crop&q=80&w=800',
     category: 'Non-Veg'
   },
   {
@@ -63,7 +63,7 @@ export const MEALS: Meal[] = [
     name: 'Jain Special Thali',
     description: 'No onion, no garlic, root-free traditional meal.',
     price: 260,
-    image: 'https://picsum.photos/seed/jain/400/300',
+    image: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&q=80&w=800',
     category: 'Jain'
   }
 ];
