@@ -1,6 +1,6 @@
 
 import { INITIAL_SEATS, STATIONS, MEALS } from '../constants';
-import { Seat, Booking, SeatStatus } from '../types';
+import { Seat, Booking, SeatStatus, Meal } from '../types';
 
 const DB_KEY = 'sleeper_swift_db';
 const SEATS_KEY = 'sleeper_swift_seats';
@@ -14,7 +14,6 @@ class BusService {
   }
 
   private initDatabase() {
-    // Load existing data or initialize with defaults
     const savedBookings = localStorage.getItem(DB_KEY);
     const savedSeats = localStorage.getItem(SEATS_KEY);
 
@@ -38,19 +37,48 @@ class BusService {
     localStorage.setItem(SEATS_KEY, JSON.stringify(this.seats));
   }
 
+  async syncData(): Promise<void> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const available = this.seats.filter(s => s.status === SeatStatus.AVAILABLE);
+        if (available.length > 2) {
+            available[0].status = SeatStatus.OCCUPIED;
+            available[1].status = SeatStatus.OCCUPIED;
+            this.saveSeats();
+        }
+        resolve();
+      }, 1500);
+    });
+  }
+
   async getSeats(): Promise<Seat[]> {
     return new Promise((resolve) => {
-      // Simulate network latency
       setTimeout(() => resolve([...this.seats]), 300);
     });
   }
 
-  async getStations() {
-    return STATIONS;
+  // Fetches the list of available meals from the constant data
+  async getMeals(): Promise<Meal[]> {
+    return new Promise((resolve) => {
+      setTimeout(() => resolve([...MEALS]), 200);
+    });
   }
 
-  async getMeals() {
-    return MEALS;
+  // Admin: Update seat status manually
+  async updateSeatStatus(seatId: string, status: SeatStatus): Promise<void> {
+    const index = this.seats.findIndex(s => s.id === seatId);
+    if (index !== -1) {
+      this.seats[index].status = status;
+      this.saveSeats();
+    }
+  }
+
+  // Admin: Clear all system data
+  async resetSystem(): Promise<void> {
+    this.bookings = [];
+    this.seats = [...INITIAL_SEATS];
+    this.saveBookings();
+    this.saveSeats();
   }
 
   async createBooking(data: {
@@ -65,7 +93,7 @@ class BusService {
         const seatIndex = this.seats.findIndex(s => s.id === data.seatId);
         
         if (seatIndex === -1 || this.seats[seatIndex].status === SeatStatus.OCCUPIED) {
-          reject(new Error("Seat is already occupied or does not exist."));
+          reject(new Error("Seat is already occupied."));
           return;
         }
 
@@ -80,7 +108,6 @@ class BusService {
           totalAmount
         };
 
-        // Update In-Memory and Persistence
         this.seats[seatIndex] = { ...this.seats[seatIndex], status: SeatStatus.OCCUPIED };
         this.bookings.push(newBooking);
         
@@ -111,7 +138,7 @@ class BusService {
         this.saveBookings();
         
         resolve(true);
-      }, 500);
+      }, 1000);
     });
   }
 

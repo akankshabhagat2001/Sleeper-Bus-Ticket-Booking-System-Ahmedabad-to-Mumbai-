@@ -1,17 +1,19 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { HashRouter, Routes, Route, Link } from 'react-router-dom';
-import { BusFront, ClipboardList, LayoutDashboard, Info, User, ChevronRight, Menu, X } from 'lucide-react';
+import { BusFront, LayoutDashboard, Info, User, ChevronRight, Menu, ShieldCheck } from 'lucide-react';
 import BookingPage from './pages/BookingPage';
 import DashboardPage from './pages/DashboardPage';
 import HomePage from './pages/HomePage';
 import DocsPage from './pages/DocsPage';
+import AdminPage from './pages/AdminPage';
 import AIAssistant from './components/AIAssistant';
 
 const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const navItems = [
     { icon: <BusFront size={20} />, label: 'Book Tickets', path: '/' },
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/dashboard' },
+    { icon: <ShieldCheck size={20} />, label: 'Admin Panel', path: '/admin' },
     { icon: <Info size={20} />, label: 'Documentation', path: '/docs' },
   ];
 
@@ -47,7 +49,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
             </div>
             <div className="overflow-hidden">
               <p className="text-sm font-semibold truncate text-slate-100">AI Engineer</p>
-              <p className="text-xs text-slate-400 truncate">Test User</p>
+              <p className="text-xs text-slate-400 truncate">Admin Access</p>
             </div>
           </div>
         </div>
@@ -91,11 +93,10 @@ const App: React.FC = () => {
               <Route path="/" element={<HomePage />} />
               <Route path="/book/:from/:to" element={<BookingPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/admin" element={<AdminPage />} />
               <Route path="/docs" element={<DocsPage />} />
             </Routes>
           </div>
-          
-          {/* AI Assistant FAB and Chat Window */}
           <AIAssistant />
         </main>
       </div>
