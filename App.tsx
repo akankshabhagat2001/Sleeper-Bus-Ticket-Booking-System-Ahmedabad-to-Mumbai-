@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
-import { BusFront, LayoutDashboard, Info, User, ChevronRight, Menu, ShieldCheck, Lock, LogIn, LogOut } from 'lucide-react';
+import { HashRouter, Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { BusFront, LayoutDashboard, Info, User, ChevronRight, Menu, ShieldCheck, Lock, LogIn, LogOut, ExternalLink } from 'lucide-react';
 import BookingPage from './pages/BookingPage';
 import DashboardPage from './pages/DashboardPage';
 import HomePage from './pages/HomePage';
 import DocsPage from './pages/DocsPage';
 import AdminPage from './pages/AdminPage';
+import LoginPage from './pages/LoginPage';
 import AIAssistant from './components/AIAssistant';
 
 // Role-based access types
@@ -18,16 +19,21 @@ const AccessDenied = () => (
       <Lock size={48} />
     </div>
     <div className="space-y-2">
-      <h2 className="text-3xl font-black text-slate-900">Access Denied</h2>
-      <p className="text-slate-500 max-w-sm mx-auto">This area is restricted to authorized SleeperSwift personnel only. Please contact your system administrator for access.</p>
+      <h2 className="text-3xl font-black text-slate-900">Access Restricted</h2>
+      <p className="text-slate-500 max-w-sm mx-auto">This area is reserved for authorized system administrators. Please sign in to proceed.</p>
     </div>
-    <Link to="/" className="px-8 py-3 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all">
-      Return to Safety
-    </Link>
+    <div className="flex flex-col sm:flex-row gap-3">
+        <Link to="/login" className="px-8 py-3 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 transition-all flex items-center gap-2">
+          <LogIn size={18} /> Admin Login
+        </Link>
+        <Link to="/" className="px-8 py-3 bg-slate-100 text-slate-600 font-bold rounded-2xl hover:bg-slate-200 transition-all">
+          Back Home
+        </Link>
+    </div>
   </div>
 );
 
-const Sidebar = ({ isOpen, onClose, userRole, toggleRole }: { isOpen: boolean, onClose: () => void, userRole: UserRole, toggleRole: () => void }) => {
+const Sidebar = ({ isOpen, onClose, userRole, onLogout }: { isOpen: boolean, onClose: () => void, userRole: UserRole, onLogout: () => void }) => {
   const navItems = [
     { icon: <BusFront size={20} />, label: 'Book Tickets', path: '/', adminOnly: false },
     { icon: <LayoutDashboard size={20} />, label: 'My Dashboard', path: '/dashboard', adminOnly: false },
@@ -64,7 +70,7 @@ const Sidebar = ({ isOpen, onClose, userRole, toggleRole }: { isOpen: boolean, o
           ))}
         </nav>
 
-        {/* User Profile / Admin Switcher */}
+        {/* User Profile / Admin Transition */}
         <div className="p-6 border-t border-slate-800 space-y-4">
           <div className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${userRole === 'admin' ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-slate-800/50 border border-transparent'}`}>
             <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${userRole === 'admin' ? 'bg-amber-500 text-slate-900' : 'bg-blue-500/20 text-blue-400'}`}>
@@ -80,17 +86,22 @@ const Sidebar = ({ isOpen, onClose, userRole, toggleRole }: { isOpen: boolean, o
             </div>
           </div>
           
-          <button 
-            onClick={toggleRole}
-            className={`w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all border ${
-              userRole === 'admin' 
-                ? 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700' 
-                : 'bg-blue-600/10 text-blue-400 border-blue-500/30 hover:bg-blue-600/20'
-            }`}
-          >
-            {userRole === 'admin' ? <LogOut size={14} /> : <LogIn size={14} />}
-            {userRole === 'admin' ? 'Exit Admin Mode' : 'Admin Login'}
-          </button>
+          {userRole === 'admin' ? (
+              <button 
+                onClick={onLogout}
+                className="w-full py-2.5 bg-slate-800 text-slate-400 border border-slate-700 rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 transition-all"
+              >
+                <LogOut size={14} /> Log Out
+              </button>
+          ) : (
+              <Link 
+                to="/login"
+                onClick={onClose}
+                className="w-full py-2.5 bg-blue-600/10 text-blue-400 border border-blue-500/30 rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-600/20 hover:border-blue-500/50 transition-all"
+              >
+                <ExternalLink size={14} /> Admin Portal
+              </Link>
+          )}
         </div>
       </div>
     </aside>
@@ -106,25 +117,31 @@ const Header = ({ onOpenSidebar }: { onOpenSidebar: () => void }) => (
       <BusFront className="text-blue-600" />
       <span className="font-bold text-lg">SleeperSwift</span>
     </div>
-    <div className="w-10 h-10 rounded-full bg-blue-100 overflow-hidden">
-        <div className="w-full h-full bg-gradient-to-br from-blue-400 to-indigo-600" />
-    </div>
+    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 shadow-sm" />
   </header>
 );
 
 const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  // Persist role in localStorage to simulate a session
   const [userRole, setUserRole] = useState<UserRole>(() => {
     return (localStorage.getItem('ss_role') as UserRole) || 'user';
   });
 
-  const toggleRole = () => {
-    const nextRole = userRole === 'admin' ? 'user' : 'admin';
-    setUserRole(nextRole);
-    localStorage.setItem('ss_role', nextRole);
-    // If exiting admin, redirect home if currently on admin page
-    if (nextRole === 'user' && window.location.hash.includes('/admin')) {
+  // Listen for login/logout events from other components
+  useEffect(() => {
+    const handleAuthChange = () => {
+      const updatedRole = (localStorage.getItem('ss_role') as UserRole) || 'user';
+      setUserRole(updatedRole);
+    };
+
+    window.addEventListener('auth-change', handleAuthChange);
+    return () => window.removeEventListener('auth-change', handleAuthChange);
+  }, []);
+
+  const handleLogout = () => {
+    if (window.confirm("Are you sure you want to end your admin session?")) {
+        localStorage.removeItem('ss_role');
+        setUserRole('user');
         window.location.hash = '#/';
     }
   };
@@ -136,7 +153,7 @@ const App: React.FC = () => {
             isOpen={isSidebarOpen} 
             onClose={() => setIsSidebarOpen(false)} 
             userRole={userRole}
-            toggleRole={toggleRole}
+            onLogout={handleLogout}
         />
         
         {isSidebarOpen && (
@@ -153,6 +170,7 @@ const App: React.FC = () => {
               <Route path="/" element={<HomePage />} />
               <Route path="/book/:from/:to" element={<BookingPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/login" element={<LoginPage />} />
               
               {/* Protected Route */}
               <Route 
