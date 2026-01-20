@@ -1,6 +1,5 @@
-
 import { INITIAL_SEATS, STATIONS, MEALS } from '../constants';
-import { Seat, Booking, SeatStatus, Meal, Station } from '../types';
+import { Seat, Booking, SeatStatus, Meal, Station, SeatMealSelection } from '../types';
 
 const DB_KEY = 'sleeper_swift_db';
 const SEATS_KEY = 'sleeper_swift_seats';
@@ -85,23 +84,37 @@ class BusService {
   }
 
   async createBooking(data: {
-    seatId: string;
+    seatIds: string[];
     fromStationId: string;
     toStationId: string;
     passengerName: string;
-    mealId?: string;
+    seatMeals: SeatMealSelection[];
   }): Promise<Booking> {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
-        const seatIndex = this.seats.findIndex(s => s.id === data.seatId);
+        const targetSeatIndices = data.seatIds.map(id => this.seats.findIndex(s => s.id === id));
         
-        if (seatIndex === -1 || this.seats[seatIndex].status === SeatStatus.OCCUPIED) {
-          reject(new Error("Seat is already occupied."));
+        const isAnyOccupied = targetSeatIndices.some(idx => idx === -1 || this.seats[idx].status === SeatStatus.OCCUPIED);
+        
+        if (isAnyOccupied) {
+          reject(new Error("One or more selected seats are already occupied."));
           return;
         }
 
-        const mealPrice = MEALS.find(m => m.id === data.mealId)?.price || 0;
-        const totalAmount = this.seats[seatIndex].price + mealPrice;
+        // Fixed: Explicitly typed the reduce parameters to avoid potential 'unknown' errors
+        const seatsPrice = targetSeatIndices.reduce((acc: number, idx: number) => {
+          const seat = this.seats[idx];
+          return acc + (seat ? seat.price : 0);
+        }, 0);
+        
+        // Calculate total meal price from the seatMeals array
+        // Fixed: Added explicit type annotations to reduce callback
+        const mealsPrice = data.seatMeals.reduce((acc: number, sm: SeatMealSelection) => {
+          const meal = MEALS.find(m => m.id === sm.mealId);
+          return acc + (meal?.price || 0);
+        }, 0);
+
+        const totalAmount = seatsPrice + mealsPrice;
 
         const newBooking: Booking = {
           id: `BK${Math.floor(Math.random() * 900000) + 100000}`,
@@ -111,7 +124,11 @@ class BusService {
           totalAmount
         };
 
-        this.seats[seatIndex] = { ...this.seats[seatIndex], status: SeatStatus.OCCUPIED };
+        // Update all seats to occupied
+        targetSeatIndices.forEach(idx => {
+          this.seats[idx] = { ...this.seats[idx], status: SeatStatus.OCCUPIED };
+        });
+
         this.bookings.push(newBooking);
         
         this.saveSeats();
@@ -129,11 +146,14 @@ class BusService {
         if (index === -1) return resolve(false);
 
         const booking = this.bookings[index];
-        const seatIndex = this.seats.findIndex(s => s.id === booking.seatId);
         
-        if (seatIndex !== -1) {
-          this.seats[seatIndex] = { ...this.seats[seatIndex], status: SeatStatus.AVAILABLE };
-        }
+        // Release all seats in the booking
+        booking.seatIds.forEach(seatId => {
+          const seatIndex = this.seats.findIndex(s => s.id === seatId);
+          if (seatIndex !== -1) {
+            this.seats[seatIndex] = { ...this.seats[seatIndex], status: SeatStatus.AVAILABLE };
+          }
+        });
 
         this.bookings[index] = { ...booking, status: 'Cancelled' };
         

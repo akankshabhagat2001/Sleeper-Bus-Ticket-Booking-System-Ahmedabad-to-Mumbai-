@@ -33,13 +33,18 @@ export interface Meal {
   category: 'Veg' | 'Non-Veg' | 'Jain';
 }
 
+export interface SeatMealSelection {
+  seatId: string;
+  mealId?: string;
+}
+
 export interface Booking {
   id: string;
-  seatId: string;
+  seatIds: string[];
   fromStationId: string;
   toStationId: string;
   passengerName: string;
-  mealId?: string;
+  seatMeals: SeatMealSelection[];
   bookingDate: string;
   status: 'Confirmed' | 'Cancelled';
   totalAmount: number;

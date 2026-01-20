@@ -1,10 +1,15 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { CheckCircle, Info, ChevronRight, Utensils, IndianRupee, User, BrainCircuit, Calendar, MapPin, AlertCircle, ShoppingCart, ArrowLeft, ArrowRight, Leaf, Bone, Heart, Bed, HelpCircle, Clock, Flame } from 'lucide-react';
+import { 
+  CheckCircle, Utensils, IndianRupee, User, BrainCircuit, 
+  MapPin, AlertCircle, ShoppingCart, ArrowLeft, ArrowRight, 
+  Bed, Clock, Timer, Check, ChevronLeft, ChevronRight, RefreshCw, X,
+  Coffee, Salad, Soup, LayoutDashboard
+} from 'lucide-react';
 import { busService } from '../services/busService';
 import { predictConfirmationProbability } from '../services/mlService';
-import { Seat, BerthType, SeatStatus, Meal, Station } from '../types';
+import { Seat, BerthType, SeatStatus, Meal, Station, SeatMealSelection } from '../types';
 
 const BookingPage: React.FC = () => {
   const { from, to } = useParams();
@@ -15,10 +20,14 @@ const BookingPage: React.FC = () => {
   const [seats, setSeats] = useState<Seat[]>([]);
   const [meals, setMeals] = useState<Meal[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
-  const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null);
-  const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
-  const [activeMealTab, setActiveMealTab] = useState<'All' | 'Veg' | 'Non-Veg' | 'Jain'>('All');
+  const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
+  
+  // Mapping of seatId -> Meal (Ensures 1 meal per seat)
+  const [seatMeals, setSeatMeals] = useState<Record<string, Meal>>({});
+  
+  // Added passengerName state to fix "Cannot find name 'passengerName'" errors
   const [passengerName, setPassengerName] = useState('');
+  
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [bookedInfo, setBookedInfo] = useState<any>(null);
@@ -40,12 +49,22 @@ const BookingPage: React.FC = () => {
   const fromStation = stations.find(s => s.id === from);
   const toStation = stations.find(s => s.id === to);
 
-  const occupancy = useMemo(() => {
-    if (seats.length === 0) return 0;
-    return (seats.filter(s => s.status === SeatStatus.OCCUPIED).length / seats.length) * 100;
-  }, [seats]);
+  const journeyTimings = useMemo(() => {
+    if (!fromStation || !toStation) return null;
+    const departureBase = new Date(`${bookingDate}T21:00:00`);
+    const departureTime = new Date(departureBase.getTime() + fromStation.timeOffset * 60000);
+    const arrivalTime = new Date(departureBase.getTime() + toStation.timeOffset * 60000);
+    const durationMins = toStation.timeOffset - fromStation.timeOffset;
+    return {
+      departure: departureTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      arrival: arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      duration: `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`,
+    };
+  }, [fromStation, toStation, bookingDate]);
 
   const confirmationProb = useMemo(() => {
+    if (seats.length === 0) return 0;
+    const occupancy = (seats.filter(s => s.status === SeatStatus.OCCUPIED).length / seats.length) * 100;
     const today = new Date();
     const travelDate = new Date(bookingDate);
     const diffDays = Math.max(0, Math.ceil((travelDate.getTime() - today.getTime()) / (1000 * 3600 * 24)));
@@ -55,35 +74,61 @@ const BookingPage: React.FC = () => {
       dayOfWeek: travelDate.getDay(),
       currentOccupancy: occupancy
     });
-  }, [bookingDate, occupancy]);
+  }, [bookingDate, seats]);
 
-  const mealCounts = useMemo(() => {
-    return {
-      All: meals.length,
-      Veg: meals.filter(m => m.category === 'Veg').length,
-      'Non-Veg': meals.filter(m => m.category === 'Non-Veg').length,
-      Jain: meals.filter(m => m.category === 'Jain').length,
-    };
-  }, [meals]);
+  const toggleSeat = (seat: Seat) => {
+    if (selectedSeats.find(s => s.id === seat.id)) {
+      setSelectedSeats(selectedSeats.filter(s => s.id !== seat.id));
+      const newSeatMeals = { ...seatMeals };
+      delete newSeatMeals[seat.id];
+      setSeatMeals(newSeatMeals);
+    } else {
+      setSelectedSeats([...selectedSeats, seat]);
+    }
+  };
 
-  const filteredMeals = useMemo(() => {
-    if (activeMealTab === 'All') return meals;
-    return meals.filter(m => m.category === activeMealTab);
-  }, [meals, activeMealTab]);
+  const assignMealToSeat = (seatId: string, meal: Meal | null) => {
+    setSeatMeals(prev => {
+      const next = { ...prev };
+      if (meal) {
+        next[seatId] = meal;
+      } else {
+        // We use a special 'skip' marker or delete. 
+        // For this UI, let's treat explicit selection as the only way to "fill" a seat.
+        // We'll add a "No Meal" option in the meal list as a special object if needed, 
+        // but for now let's just allow clearing.
+        delete next[seatId];
+      }
+      return next;
+    });
+  };
+
+  const totalSeatsPrice = selectedSeats.reduce((acc, s) => acc + s.price, 0);
+  // Fixed: Added explicit type annotations to reduce callback to fix 'unknown' type error
+  const totalMealsPrice = Object.values(seatMeals).reduce((acc: number, m: Meal) => acc + m.price, 0);
+  const totalAmount = totalSeatsPrice + totalMealsPrice;
+
+  const isMealStepComplete = selectedSeats.length > 0 && 
+    selectedSeats.every(s => seatMeals[s.id] !== undefined);
 
   const handleBooking = async () => {
-    if (!selectedSeat || !passengerName.trim()) {
-        alert("Please provide required details.");
-        return;
+    if (!passengerName.trim()) {
+      alert("Please enter passenger name");
+      return;
     }
     setLoading(true);
+    const formattedSeatMeals: SeatMealSelection[] = selectedSeats.map(s => ({
+      seatId: s.id,
+      mealId: seatMeals[s.id]?.id
+    }));
+
     try {
       const result = await busService.createBooking({
-        seatId: selectedSeat.id,
+        seatIds: selectedSeats.map(s => s.id),
         fromStationId: from!,
         toStationId: to!,
         passengerName,
-        mealId: selectedMeal?.id
+        seatMeals: formattedSeatMeals
       });
       setBookedInfo(result);
       setStep(4);
@@ -94,397 +139,295 @@ const BookingPage: React.FC = () => {
     }
   };
 
-  const getProbColor = (p: number) => {
-    if (p > 90) return 'text-green-600';
-    if (p > 75) return 'text-blue-600';
-    return 'text-amber-600';
-  };
-
-  const lowerBerths = seats.filter(s => s.type === BerthType.LOWER);
-  const upperBerths = seats.filter(s => s.type === BerthType.UPPER);
-
-  if (loading && step === 1) {
-    return <div className="h-96 flex items-center justify-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-    </div>;
-  }
+  if (loading && step === 1) return <div className="h-96 flex items-center justify-center"><RefreshCw className="animate-spin text-blue-600" size={32} /></div>;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-12 animate-in fade-in duration-500">
-      {/* Route Header */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="text-center">
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Origin</p>
-            <p className="text-xl font-bold">{fromStation?.name}</p>
+    <div className="max-w-4xl mx-auto space-y-6 pb-20 animate-in fade-in duration-500">
+      {/* Step Header */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-100 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-8">
+          <div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Route</p>
+            <p className="text-lg font-bold text-slate-900">{fromStation?.name} <ArrowRight size={14} className="inline mx-1 text-slate-300" /> {toStation?.name}</p>
           </div>
-          <div className="h-px w-12 bg-slate-200 relative">
-            <div className="absolute -top-1 right-0 w-2 h-2 rounded-full bg-blue-500"></div>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Destination</p>
-            <p className="text-xl font-bold">{toStation?.name}</p>
+          <div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</p>
+            <p className="text-lg font-bold text-slate-900">{bookingDate}</p>
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Date</p>
-          <p className="text-lg font-medium">{bookingDate}</p>
+        <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-2xl border border-blue-100">
+          <BrainCircuit size={18} className="text-blue-600" />
+          <p className="text-sm font-bold text-blue-900">{confirmationProb}% Confirmation</p>
         </div>
       </div>
 
-      {/* Progress Steps */}
+      {/* Progress Bar */}
       {step < 4 && (
-        <div className="flex items-center justify-center gap-2 md:gap-4">
-            {[1, 2, 3].map((s) => (
+        <div className="flex items-center justify-center gap-4 py-4">
+          {[1, 2, 3].map((s) => (
             <React.Fragment key={s}>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-colors ${step === s ? 'bg-blue-600 text-white shadow-lg ring-4 ring-blue-50' : step > s ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                {step > s ? <CheckCircle size={18} /> : s}
-                </div>
-                {s < 3 && <div className={`h-1 w-8 md:w-16 rounded ${step > s ? 'bg-green-500' : 'bg-slate-200'}`}></div>}
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all ${step === s ? 'bg-blue-600 text-white shadow-lg ring-4 ring-blue-50' : step > s ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                {step > s ? <Check size={18} /> : s}
+              </div>
+              {s < 3 && <div className={`h-1 w-12 rounded ${step > s ? 'bg-green-500' : 'bg-slate-200'}`}></div>}
             </React.Fragment>
-            ))}
+          ))}
         </div>
       )}
 
-      {/* Prediction Banner */}
-      {step < 4 && (
-        <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-center gap-4">
-          <div className="bg-blue-600 p-2 rounded-lg">
-            <BrainCircuit className="text-white" size={20} />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-blue-900">AI Confirmation Predictor</p>
-            <p className="text-sm text-blue-700">
-              Your booking has a <span className={`font-bold ${getProbColor(confirmationProb)}`}>{confirmationProb}% probability</span> of confirmation based on current demand.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Step Contents */}
+      {/* Step 1: Seat Selection */}
       {step === 1 && (
         <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
-          <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900">Choose Your Comfort</h2>
-              <p className="text-sm text-slate-500">Select a berth from the layout below.</p>
-            </div>
-            <div className="flex flex-wrap gap-4 text-[10px] font-bold uppercase tracking-wider">
-              <span className="flex items-center gap-2 px-2 py-1 bg-white border border-slate-200 rounded-md">
-                <div className="w-2.5 h-2.5 bg-white border border-slate-300 rounded-sm"></div> Available
-              </span>
-              <span className="flex items-center gap-2 px-2 py-1 bg-slate-100 text-slate-400 border border-slate-200 rounded-md">
-                <div className="w-2.5 h-2.5 bg-slate-200 rounded-sm"></div> Occupied
-              </span>
-              <span className="flex items-center gap-2 px-2 py-1 bg-blue-50 text-blue-600 border border-blue-100 rounded-md">
-                <div className="w-2.5 h-2.5 bg-blue-600 rounded-sm"></div> Selected
-              </span>
-            </div>
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl font-black text-slate-900">Choose Your Berths</h2>
+            <p className="text-slate-500 text-sm">Select one or more sleepers for your group.</p>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Lower Deck */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Lower Deck</h3>
-                <div className="group relative flex items-center gap-1.5 text-[10px] text-blue-500 font-bold bg-blue-50 px-2 py-1 rounded-full cursor-help">
-                  <HelpCircle size={12} /> Easy Access
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-white rounded-lg text-[10px] font-medium opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-xl">
-                    Ideal for elderly, children, or those who prefer not to climb. Near the exit.
-                  </div>
-                </div>
-              </div>
-              
-              <div className="relative p-6 bg-white rounded-3xl border-2 border-slate-100 shadow-sm">
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-slate-100 text-slate-400 px-4 py-1 rounded-full text-[10px] font-bold border-2 border-white">
-                  FRONT / DRIVER
-                </div>
-                
-                <div className="grid grid-cols-3 gap-4 pt-2">
-                  {lowerBerths.map(seat => (
-                    <button
-                      key={seat.id}
-                      disabled={seat.status === SeatStatus.OCCUPIED}
-                      onClick={() => setSelectedSeat(seat)}
-                      className={`h-16 relative flex flex-col items-center justify-center rounded-xl border-2 transition-all group ${
-                        selectedSeat?.id === seat.id 
-                          ? 'bg-blue-600 border-blue-600 text-white scale-110 shadow-lg shadow-blue-500/30 ring-4 ring-blue-100' 
-                          : seat.status === SeatStatus.OCCUPIED 
-                            ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed opacity-60'
-                            : 'bg-white border-slate-100 hover:border-blue-400 hover:bg-blue-50 text-slate-700'
-                      }`}
-                    >
-                      <Bed size={14} className={`mb-1 ${selectedSeat?.id === seat.id ? 'text-blue-200' : 'text-slate-300 group-hover:text-blue-400'}`} />
-                      <span className="text-xs font-black">{seat.number}</span>
-                    </button>
-                  ))}
-                </div>
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest text-center border-b pb-4">Lower Deck</h3>
+              <div className="grid grid-cols-3 gap-4">
+                {seats.filter(s => s.type === BerthType.LOWER).map(seat => (
+                  <button
+                    key={seat.id}
+                    disabled={seat.status === SeatStatus.OCCUPIED}
+                    onClick={() => toggleSeat(seat)}
+                    className={`h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${
+                      selectedSeats.some(s => s.id === seat.id) ? 'bg-blue-600 border-blue-600 text-white shadow-lg scale-105' : 
+                      seat.status === SeatStatus.OCCUPIED ? 'bg-slate-100 border-slate-100 text-slate-300 cursor-not-allowed' : 
+                      'bg-white border-slate-100 hover:border-blue-300 hover:bg-blue-50 text-slate-700'
+                    }`}
+                  >
+                    <Bed size={14} className="opacity-40" />
+                    <span className="text-xs font-black">{seat.number}</span>
+                  </button>
+                ))}
               </div>
             </div>
 
             {/* Upper Deck */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Upper Deck</h3>
-                <div className="group relative flex items-center gap-1.5 text-[10px] text-purple-500 font-bold bg-purple-50 px-2 py-1 rounded-full cursor-help">
-                  <HelpCircle size={12} /> Extra Privacy
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-white rounded-lg text-[10px] font-medium opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-xl">
-                    Better views and more privacy from the aisle. Recommended for solo travelers.
-                  </div>
-                </div>
-              </div>
-
-              <div className="relative p-6 bg-white rounded-3xl border-2 border-slate-100 shadow-sm">
-                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-slate-100 text-slate-400 px-4 py-1 rounded-full text-[10px] font-bold border-2 border-white">
-                  FRONT / DRIVER
-                </div>
-
-                <div className="grid grid-cols-3 gap-4 pt-2">
-                  {upperBerths.map(seat => (
-                    <button
-                      key={seat.id}
-                      disabled={seat.status === SeatStatus.OCCUPIED}
-                      onClick={() => setSelectedSeat(seat)}
-                      className={`h-16 relative flex flex-col items-center justify-center rounded-xl border-2 transition-all group ${
-                        selectedSeat?.id === seat.id 
-                          ? 'bg-blue-600 border-blue-600 text-white scale-110 shadow-lg shadow-blue-500/30 ring-4 ring-blue-100' 
-                          : seat.status === SeatStatus.OCCUPIED 
-                            ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed opacity-60'
-                            : 'bg-white border-slate-100 hover:border-blue-400 hover:bg-blue-50 text-slate-700'
-                      }`}
-                    >
-                      <Bed size={14} className={`mb-1 ${selectedSeat?.id === seat.id ? 'text-blue-200' : 'text-slate-300 group-hover:text-blue-400'}`} />
-                      <span className="text-xs font-black">{seat.number}</span>
-                    </button>
-                  ))}
-                </div>
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest text-center border-b pb-4">Upper Deck</h3>
+              <div className="grid grid-cols-3 gap-4">
+                {seats.filter(s => s.type === BerthType.UPPER).map(seat => (
+                  <button
+                    key={seat.id}
+                    disabled={seat.status === SeatStatus.OCCUPIED}
+                    onClick={() => toggleSeat(seat)}
+                    className={`h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${
+                      selectedSeats.some(s => s.id === seat.id) ? 'bg-blue-600 border-blue-600 text-white shadow-lg scale-105' : 
+                      seat.status === SeatStatus.OCCUPIED ? 'bg-slate-100 border-slate-100 text-slate-300 cursor-not-allowed' : 
+                      'bg-white border-slate-100 hover:border-blue-300 hover:bg-blue-50 text-slate-700'
+                    }`}
+                  >
+                    <Bed size={14} className="opacity-40" />
+                    <span className="text-xs font-black">{seat.number}</span>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
 
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-6 bg-slate-900 rounded-3xl text-white shadow-xl shadow-slate-200">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
-                <Bed className="text-blue-400" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Selected Seat</p>
-                <p className="text-xl font-black">{selectedSeat ? `Seat ${selectedSeat.number}` : 'None selected'}</p>
-              </div>
+          <div className="p-6 bg-slate-900 rounded-[2rem] text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
+            <div className="space-y-1">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Selection Overview</p>
+              <p className="text-xl font-black">{selectedSeats.length > 0 ? `${selectedSeats.length} Seats: ${selectedSeats.map(s => s.number).join(', ')}` : 'No berths selected'}</p>
             </div>
-            
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Base Fare</p>
-                <p className="text-xl font-black text-blue-400">₹{selectedSeat?.price || 0}</p>
-              </div>
-              <button 
-                disabled={!selectedSeat}
-                onClick={() => setStep(2)}
-                className="ml-4 px-8 py-4 bg-blue-600 text-white font-bold rounded-2xl disabled:opacity-50 flex items-center gap-2 hover:bg-blue-700 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-600/30"
-              >
-                Next: Meals <ArrowRight size={18} />
-              </button>
-            </div>
+            <button 
+              disabled={selectedSeats.length === 0}
+              onClick={() => setStep(2)}
+              className="px-10 py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 disabled:opacity-50 transition-all shadow-lg shadow-blue-500/20 active:scale-95 flex items-center gap-2"
+            >
+              Assign Meals <ArrowRight size={18} />
+            </button>
           </div>
         </div>
       )}
 
+      {/* Step 2: Individual Meal Assignment */}
       {step === 2 && (
-        <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold">Select Meal Add-on</h2>
-              <p className="text-sm text-slate-500">Pre-booked meals are served fresh at our Vadodara pitstop.</p>
-            </div>
-            
-            {/* Category Tabs */}
-            <div className="flex p-1 bg-slate-100 rounded-2xl border border-slate-200 shadow-inner">
-              {(['All', 'Veg', 'Non-Veg', 'Jain'] as const).map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveMealTab(cat)}
-                  className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2.5 ${
-                    activeMealTab === cat 
-                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 ring-4 ring-blue-50 scale-105 z-10' 
-                      : 'text-slate-500 hover:text-slate-800 hover:bg-white/50'
-                  }`}
-                >
-                  {cat === 'All' && <Utensils size={15} className={activeMealTab === cat ? 'text-white' : 'text-slate-400'} />}
-                  {cat === 'Veg' && <Leaf size={15} className={activeMealTab === cat ? 'text-white' : 'text-green-500'} />}
-                  {cat === 'Non-Veg' && <Bone size={15} className={activeMealTab === cat ? 'text-white' : 'text-red-500'} />}
-                  {cat === 'Jain' && <Heart size={15} className={activeMealTab === cat ? 'text-white' : 'text-purple-500'} />}
-                  <span className="whitespace-nowrap">{cat} ({mealCounts[cat]})</span>
-                </button>
-              ))}
-            </div>
+        <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl font-black text-slate-900">Personalize Your Meals</h2>
+            <p className="text-slate-500 text-sm">Select exactly one food item for each passenger's berth.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[400px]">
-            {filteredMeals.map(meal => (
-              <div 
-                key={meal.id} 
-                onClick={() => setSelectedMeal(selectedMeal?.id === meal.id ? null : meal)}
-                className={`group relative cursor-pointer p-5 rounded-3xl border-2 transition-all hover:shadow-xl ${
-                  selectedMeal?.id === meal.id ? 'border-blue-600 bg-blue-50/50' : 'border-slate-100 bg-white hover:border-blue-200'
-                }`}
-              >
-                {selectedMeal?.id === meal.id && (
-                  <div className="absolute top-4 right-4 bg-blue-600 text-white p-1 rounded-full shadow-lg z-10">
-                    <CheckCircle size={18} />
-                  </div>
-                )}
-                <div className="space-y-4">
-                  <div className="relative h-44 overflow-hidden rounded-2xl">
-                    <img src={meal.image} alt={meal.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                    <div className="absolute bottom-3 left-3 flex gap-2">
-                        <span className="px-3 py-1 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold rounded-full flex items-center gap-1">
-                            <Flame size={10} className="text-orange-400" /> Hot
-                        </span>
-                        <span className="px-3 py-1 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold rounded-full flex items-center gap-1">
-                            <Clock size={10} /> 15m
-                        </span>
+          <div className="space-y-6">
+            {selectedSeats.map((seat, index) => (
+              <div key={seat.id} className={`p-8 rounded-[2.5rem] border-2 transition-all ${seatMeals[seat.id] ? 'bg-green-50/30 border-green-200' : 'bg-white border-slate-100'}`}>
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${seatMeals[seat.id] ? 'bg-green-500 text-white' : 'bg-blue-600 text-white'}`}>
+                      <Bed size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-900">Berth {seat.number}</h3>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{seat.type} SLEEPER</p>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                        meal.category === 'Veg' ? 'bg-green-100 text-green-700' : 
-                        meal.category === 'Jain' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
-                      }`}>
-                        {meal.category}
-                      </span>
-                      <span className="font-black text-xl text-slate-900">₹{meal.price}</span>
+                  {seatMeals[seat.id] ? (
+                    <div className="flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest">
+                      <CheckCircle size={16} /> Meal Assigned
                     </div>
-                    <h3 className="font-bold text-lg text-slate-800">{meal.name}</h3>
-                    <p className="text-xs text-slate-500 leading-relaxed">{meal.description}</p>
-                  </div>
+                  ) : (
+                    <div className="text-amber-500 text-xs font-black uppercase tracking-widest animate-pulse">
+                      Pending Selection
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {meals.map(meal => (
+                    <button
+                      key={meal.id}
+                      onClick={() => assignMealToSeat(seat.id, meal)}
+                      className={`relative p-3 rounded-2xl border-2 transition-all text-left flex flex-col gap-2 group ${
+                        seatMeals[seat.id]?.id === meal.id ? 'border-blue-600 bg-blue-50/50 ring-4 ring-blue-50' : 'border-slate-50 bg-slate-50/30 hover:border-blue-200'
+                      }`}
+                    >
+                      <div className="h-24 rounded-xl overflow-hidden mb-2">
+                        <img src={meal.image} alt={meal.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center">
+                          <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${
+                            meal.category === 'Veg' ? 'bg-green-100 text-green-700' : 
+                            meal.category === 'Jain' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+                          }`}>
+                            {meal.category}
+                          </span>
+                          <p className="text-xs font-black text-slate-900">₹{meal.price}</p>
+                        </div>
+                        <p className="text-xs font-bold text-slate-800 line-clamp-1">{meal.name}</p>
+                      </div>
+                      {seatMeals[seat.id]?.id === meal.id && (
+                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg">
+                          <Check size={14} strokeWidth={4} />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+
+                  {/* Explicit No-Meal Option */}
+                  <button
+                    onClick={() => {
+                        // Using a dummy "No Meal" object for logic consistency
+                        assignMealToSeat(seat.id, { id: 'none', name: 'No Meal', price: 0, description: '', image: '', category: 'Veg' });
+                    }}
+                    className={`p-6 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center text-center gap-2 transition-all ${
+                      seatMeals[seat.id]?.id === 'none' ? 'border-blue-600 bg-blue-50' : 'border-slate-100 hover:border-blue-200'
+                    }`}
+                  >
+                    <X className={seatMeals[seat.id]?.id === 'none' ? 'text-blue-600' : 'text-slate-300'} />
+                    <p className="text-xs font-black text-slate-500 uppercase tracking-widest">No Meal</p>
+                  </button>
                 </div>
               </div>
             ))}
           </div>
-          
-          <div className="flex justify-between items-center mt-8">
-            <button 
-              onClick={() => setStep(1)}
-              className="flex items-center gap-2 text-slate-600 font-semibold hover:text-slate-900"
-            >
-              <ArrowLeft size={18} /> Back to Seats
+
+          <div className="flex justify-between items-center pt-8 border-t">
+            <button onClick={() => setStep(1)} className="flex items-center gap-2 text-slate-400 font-bold hover:text-slate-900 transition-colors">
+              <ArrowLeft size={18} /> Edit Berths
             </button>
             <button 
+              disabled={Object.keys(seatMeals).length < selectedSeats.length}
               onClick={() => setStep(3)}
-              className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl flex items-center gap-2 hover:bg-blue-700 transition-colors"
+              className="px-10 py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 disabled:opacity-50 transition-all shadow-lg shadow-blue-500/20 flex items-center gap-2"
             >
-              Passenger Info <ArrowRight size={18} />
+              Review Booking <ArrowRight size={18} />
             </button>
           </div>
         </div>
       )}
 
+      {/* Step 3: Review */}
       {step === 3 && (
-        <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
-          <h2 className="text-2xl font-bold">Review & Passenger Info</h2>
+        <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
+          <h2 className="text-2xl font-black text-slate-900 text-center">Confirm & Proceed</h2>
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2 space-y-6">
-              <div className="bg-white p-6 rounded-2xl border border-slate-100 space-y-4">
-                <label className="block space-y-2">
-                  <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">Passenger Full Name</span>
+              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lead Passenger Name</label>
                   <input 
                     type="text" 
                     value={passengerName}
                     onChange={(e) => setPassengerName(e.target.value)}
                     placeholder="Enter full name"
-                    className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full h-14 px-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold"
                   />
-                </label>
-              </div>
+                </div>
 
-              <div className="bg-slate-900 text-white p-6 rounded-2xl space-y-4 shadow-xl">
-                <h3 className="font-bold flex items-center gap-2"><ShoppingCart size={18} /> Booking Summary</h3>
-                <div className="space-y-2 text-sm text-slate-400">
-                  <div className="flex justify-between">
-                    <span>Seat {selectedSeat?.number} ({selectedSeat?.type})</span>
-                    <span className="text-white">₹{selectedSeat?.price}</span>
-                  </div>
-                  {selectedMeal && (
-                    <div className="flex justify-between">
-                      <span>Meal: {selectedMeal.name}</span>
-                      <span className="text-white">₹{selectedMeal.price}</span>
+                <div className="space-y-4 pt-4">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Detailed Breakdown</p>
+                  {selectedSeats.map(seat => (
+                    <div key={seat.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center font-black text-blue-600 border border-slate-100">{seat.number}</div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-800">{seat.type} BERTH</p>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{seatMeals[seat.id]?.id === 'none' ? 'No Meal Selected' : seatMeals[seat.id]?.name}</p>
+                        </div>
+                      </div>
+                      <p className="font-black text-slate-900">₹{seat.price + (seatMeals[seat.id]?.price || 0)}</p>
                     </div>
-                  )}
-                  <div className="pt-4 border-t border-slate-800 flex justify-between text-lg font-bold text-white">
-                    <span>Total Amount</span>
-                    <span>₹{(selectedSeat?.price || 0) + (selectedMeal?.price || 0)}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="bg-slate-900 text-white p-8 rounded-[2.5rem] shadow-2xl space-y-6">
+                <h3 className="font-black text-sm uppercase tracking-widest text-slate-500">Fare Summary</h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400 font-bold">Base Fare ({selectedSeats.length}x)</span>
+                    <span className="font-bold">₹{totalSeatsPrice}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400 font-bold">Meal Add-ons</span>
+                    <span className="font-bold">₹{totalMealsPrice}</span>
+                  </div>
+                  <div className="pt-4 border-t border-white/10 flex justify-between items-center">
+                    <p className="text-xs font-black text-blue-400 uppercase">Grand Total</p>
+                    <p className="text-3xl font-black">₹{totalAmount}</p>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl space-y-3">
-                <div className="flex items-center gap-2 text-amber-800 font-bold text-sm">
-                  <AlertCircle size={16} /> Important Note
-                </div>
-                <p className="text-xs text-amber-700 leading-relaxed">
-                  Bookings are subject to verification. Please arrive at the station 30 minutes before departure time.
-                </p>
+                <button 
+                  disabled={loading || !passengerName.trim()}
+                  onClick={handleBooking}
+                  className="w-full py-5 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-50"
+                >
+                  {loading ? <RefreshCw className="animate-spin mx-auto" /> : 'Confirm Booking'}
+                </button>
               </div>
             </div>
           </div>
-
-          <div className="flex justify-between items-center mt-8">
-            <button 
-              onClick={() => setStep(2)}
-              className="flex items-center gap-2 text-slate-600 font-semibold hover:text-slate-900"
-            >
-              <ArrowLeft size={18} /> Back to Meals
-            </button>
-            <button 
-              disabled={loading || !passengerName.trim()}
-              onClick={handleBooking}
-              className="px-10 py-4 bg-blue-600 text-white font-bold rounded-xl flex items-center gap-2 hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20 disabled:opacity-50"
-            >
-              {loading ? 'Processing...' : 'Confirm Booking'}
-            </button>
-          </div>
+          
+          <button onClick={() => setStep(2)} className="flex items-center gap-2 text-slate-400 font-bold hover:text-slate-900 transition-colors">
+            <ArrowLeft size={18} /> Back to Meals
+          </button>
         </div>
       )}
 
+      {/* Step 4: Success */}
       {step === 4 && bookedInfo && (
-        <div className="bg-white p-12 rounded-3xl border border-slate-100 text-center space-y-8 shadow-xl animate-in zoom-in duration-500">
-          <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto ring-8 ring-green-50">
-            <CheckCircle size={40} />
+        <div className="bg-white p-12 rounded-[3rem] border border-slate-100 text-center space-y-8 shadow-2xl animate-in zoom-in duration-500">
+          <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto ring-[12px] ring-green-50 shadow-inner">
+            <CheckCircle size={48} strokeWidth={2.5} />
           </div>
           <div className="space-y-2">
-            <h2 className="text-3xl font-extrabold text-slate-900">Booking Confirmed!</h2>
-            <p className="text-slate-500">Your ticket ID is <span className="font-bold text-slate-900">#{bookedInfo.id}</span></p>
+            <h2 className="text-4xl font-black text-slate-900">Success!</h2>
+            <p className="text-slate-500 font-medium">Your tickets for {bookedInfo.passengerName} are confirmed.</p>
+            <div className="mt-4 px-4 py-1 bg-slate-900 text-blue-400 text-xs font-black rounded-lg inline-block uppercase tracking-widest">Ticket ID: {bookedInfo.id}</div>
           </div>
-
-          <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto text-left bg-slate-50 p-6 rounded-2xl border border-slate-100">
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase">Passenger</p>
-              <p className="font-bold">{bookedInfo.passengerName}</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase">Seat</p>
-              <p className="font-bold">{selectedSeat?.number}</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase">From</p>
-              <p className="font-bold">{fromStation?.name}</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase">To</p>
-              <p className="font-bold">{toStation?.name}</p>
-            </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6">
+            <button onClick={() => navigate('/dashboard')} className="w-full sm:w-auto px-10 py-4 bg-slate-900 text-white font-black rounded-2xl flex items-center justify-center gap-2 shadow-lg"><LayoutDashboard size={18} /> Go to Dashboard</button>
+            <button onClick={() => window.print()} className="w-full sm:w-auto px-10 py-4 bg-white text-slate-600 border border-slate-200 font-bold rounded-2xl">Print Ticket</button>
           </div>
-
-          <button 
-            onClick={() => navigate('/dashboard')}
-            className="px-8 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors"
-          >
-            Go to Dashboard
-          </button>
         </div>
       )}
     </div>
