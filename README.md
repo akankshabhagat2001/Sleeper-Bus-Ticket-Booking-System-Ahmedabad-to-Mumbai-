@@ -41,4 +41,4 @@ This project satisfies the AI/ML Software Engineer assignment. It demonstrates a
 4. Launch via `npm start`.
 
 ---
-*Developed for the AI/ML Software Engineer Assignment.*
+*Developed for the AI/ML Software Engineer project task.*
