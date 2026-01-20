@@ -57,6 +57,15 @@ const BookingPage: React.FC = () => {
     });
   }, [bookingDate, occupancy]);
 
+  const mealCounts = useMemo(() => {
+    return {
+      All: meals.length,
+      Veg: meals.filter(m => m.category === 'Veg').length,
+      'Non-Veg': meals.filter(m => m.category === 'Non-Veg').length,
+      Jain: meals.filter(m => m.category === 'Jain').length,
+    };
+  }, [meals]);
+
   const filteredMeals = useMemo(() => {
     if (activeMealTab === 'All') return meals;
     return meals.filter(m => m.category === activeMealTab);
@@ -290,22 +299,22 @@ const BookingPage: React.FC = () => {
             </div>
             
             {/* Category Tabs */}
-            <div className="flex p-1.5 bg-slate-100 rounded-2xl border border-slate-200 shadow-inner">
+            <div className="flex p-1 bg-slate-100 rounded-2xl border border-slate-200 shadow-inner">
               {(['All', 'Veg', 'Non-Veg', 'Jain'] as const).map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setActiveMealTab(cat)}
-                  className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2.5 ${
+                  className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2.5 ${
                     activeMealTab === cat 
-                      ? 'bg-white text-blue-600 shadow-md ring-1 ring-slate-200 scale-105 z-10' 
-                      : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 ring-4 ring-blue-50 scale-105 z-10' 
+                      : 'text-slate-500 hover:text-slate-800 hover:bg-white/50'
                   }`}
                 >
-                  {cat === 'All' && <Utensils size={15} className={activeMealTab === cat ? 'text-blue-500' : 'text-slate-400'} />}
-                  {cat === 'Veg' && <Leaf size={15} className={activeMealTab === cat ? 'text-green-500' : 'text-slate-400'} />}
-                  {cat === 'Non-Veg' && <Bone size={15} className={activeMealTab === cat ? 'text-red-500' : 'text-slate-400'} />}
-                  {cat === 'Jain' && <Heart size={15} className={activeMealTab === cat ? 'text-purple-500' : 'text-slate-400'} />}
-                  {cat}
+                  {cat === 'All' && <Utensils size={15} className={activeMealTab === cat ? 'text-white' : 'text-slate-400'} />}
+                  {cat === 'Veg' && <Leaf size={15} className={activeMealTab === cat ? 'text-white' : 'text-green-500'} />}
+                  {cat === 'Non-Veg' && <Bone size={15} className={activeMealTab === cat ? 'text-white' : 'text-red-500'} />}
+                  {cat === 'Jain' && <Heart size={15} className={activeMealTab === cat ? 'text-white' : 'text-purple-500'} />}
+                  <span className="whitespace-nowrap">{cat} ({mealCounts[cat]})</span>
                 </button>
               ))}
             </div>

@@ -47,7 +47,7 @@ export const MEALS: Meal[] = [
     name: 'Mumbai Pav Bhaji',
     description: 'Buttery spicy mash served with two soft pavs.',
     price: 180,
-    image: 'https://images.unsplash.com/photo-1626132646529-500337552978?auto=format&fit=crop&q=80&w=800',
+    image: 'https://images.unsplash.com/photo-1606491956689-2ea8c5369506?auto=format&fit=crop&q=80&w=800',
     category: 'Veg'
   },
   {
@@ -63,7 +63,7 @@ export const MEALS: Meal[] = [
     name: 'Jain Special Thali',
     description: 'No onion, no garlic, root-free traditional meal.',
     price: 260,
-    image: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&q=80&w=800',
+    image: 'https://images.unsplash.com/photo-1610192244261-3f13621a2393?auto=format&fit=crop&q=80&w=800',
     category: 'Jain'
   }
 ];

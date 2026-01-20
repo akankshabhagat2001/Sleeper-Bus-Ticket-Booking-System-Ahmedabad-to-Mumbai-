@@ -6,7 +6,7 @@ import { STATIONS } from '../constants';
 import { 
   Users, TrendingUp, Percent, IndianRupee, 
   Settings, Trash2, RefreshCw, AlertTriangle, 
-  Search, ShieldAlert, Bed, Filter
+  Search, ShieldAlert, Bed, Filter, CheckCircle, X
 } from 'lucide-react';
 
 const AdminPage: React.FC = () => {
@@ -15,6 +15,7 @@ const AdminPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'Bookings' | 'Inventory'>('Bookings');
+  const [alert, setAlert] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
 
   useEffect(() => {
     refreshData();
@@ -56,6 +57,12 @@ const AdminPage: React.FC = () => {
     if (window.confirm(`Manually set Seat ${seatId} to ${nextStatus}?`)) {
       await busService.updateSeatStatus(seatId, nextStatus);
       refreshData();
+      setAlert({
+        message: `Override Successful: Seat ${seatId} is now ${nextStatus}. Changes are active immediately across the system.`,
+        type: 'success'
+      });
+      // Auto-dismiss after 5 seconds
+      setTimeout(() => setAlert(null), 5000);
     }
   };
 
@@ -63,6 +70,11 @@ const AdminPage: React.FC = () => {
     if (window.confirm("CRITICAL: This will delete ALL bookings and reset seat inventory. Continue?")) {
       await busService.resetSystem();
       refreshData();
+      setAlert({
+        message: "System Reset Complete: All data has been purged and inventory returned to factory defaults.",
+        type: 'info'
+      });
+      setTimeout(() => setAlert(null), 5000);
     }
   };
 
@@ -79,6 +91,24 @@ const AdminPage: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Dynamic Alert Banner */}
+      {alert && (
+        <div className={`p-4 rounded-2xl flex items-center justify-between shadow-lg shadow-black/5 animate-in slide-in-from-top-4 duration-300 ${
+          alert.type === 'success' ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'
+        }`}>
+          <div className="flex items-center gap-3">
+            <CheckCircle size={20} />
+            <p className="text-sm font-bold">{alert.message}</p>
+          </div>
+          <button 
+            onClick={() => setAlert(null)}
+            className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
+      )}
+
       {/* Admin Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
