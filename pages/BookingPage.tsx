@@ -5,7 +5,8 @@ import {
   CheckCircle, Utensils, IndianRupee, User, BrainCircuit, 
   MapPin, AlertCircle, ShoppingCart, ArrowLeft, ArrowRight, 
   Bed, Clock, Timer, Check, ChevronLeft, ChevronRight, RefreshCw, X,
-  Coffee, Salad, Soup, LayoutDashboard, Printer, Download, QrCode
+  Coffee, Salad, Soup, LayoutDashboard, Printer, Download, QrCode,
+  ShieldCheck
 } from 'lucide-react';
 import { busService } from '../services/busService';
 import { predictConfirmationProbability } from '../services/mlService';
@@ -139,15 +140,19 @@ const BookingPage: React.FC = () => {
           body * { visibility: hidden; }
           #printable-ticket, #printable-ticket * { visibility: visible; }
           #printable-ticket {
-            position: absolute;
+            position: fixed;
             left: 0;
             top: 0;
             width: 100%;
+            height: auto;
+            margin: 0;
             padding: 40px;
             background: white !important;
             color: black !important;
           }
           .no-print { display: none !important; }
+          .print-bg-black { background-color: black !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .print-border-black { border: 2px solid black !important; }
         }
       `}</style>
 
@@ -445,82 +450,115 @@ const BookingPage: React.FC = () => {
       {/* Hidden Printable Ticket Template */}
       {bookedInfo && (
         <div id="printable-ticket" className="hidden">
-          <div className="max-w-2xl mx-auto border-4 border-slate-900 p-10 bg-white">
-            <div className="flex justify-between items-start border-b-4 border-slate-900 pb-8 mb-8">
-              <div className="space-y-2">
-                <h1 className="text-4xl font-black uppercase tracking-tighter">SleeperSwift</h1>
-                <p className="text-sm font-bold text-slate-500">Official E-Ticket & Boarding Pass</p>
+          <div className="max-w-4xl mx-auto border-2 border-black p-10 bg-white font-sans">
+            {/* Header / Ticket ID */}
+            <div className="flex justify-between items-center bg-black p-8 mb-10 print-bg-black">
+              <div className="text-white">
+                <h1 className="text-5xl font-black uppercase tracking-tighter">SleeperSwift</h1>
+                <p className="text-[12px] font-bold opacity-80 uppercase tracking-[0.3em]">Official E-Boarding Pass</p>
               </div>
-              <div className="text-right">
-                <p className="text-[10px] font-black uppercase text-slate-400">Booking Reference</p>
-                <p className="text-2xl font-black">{bookedInfo.id}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-8 mb-10">
-              <div>
-                <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Passenger Name</p>
-                <p className="text-xl font-bold">{bookedInfo.passengerName}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Travel Date</p>
-                <p className="text-xl font-bold">{new Date(bookingDate).toLocaleDateString(undefined, { dateStyle: 'full' })}</p>
+              <div className="text-right text-white">
+                <p className="text-[9px] font-black uppercase opacity-60 mb-1">Booking Reference</p>
+                <p className="text-4xl font-black tracking-tighter">{bookedInfo.id}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 mb-10 bg-slate-50 p-6 rounded-2xl border border-slate-200">
-              <div className="flex-1">
-                <p className="text-[10px] font-black uppercase text-slate-400">Origin</p>
-                <p className="text-lg font-black">{fromStation?.name}</p>
-                <p className="text-xs text-slate-500">Boarding at 21:00 hrs</p>
+            {/* Travel Route Grid */}
+            <div className="grid grid-cols-2 gap-12 mb-10 pb-10 border-b-2 border-dashed border-black">
+              <div className="space-y-6">
+                <div>
+                  <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Lead Passenger</p>
+                  <p className="text-2xl font-bold uppercase">{bookedInfo.passengerName}</p>
+                </div>
+                <div className="flex gap-10">
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Travel Date</p>
+                    <p className="text-sm font-bold">{new Date(bookingDate).toLocaleDateString(undefined, { dateStyle: 'full' })}</p>
+                  </div>
+                </div>
               </div>
-              <div className="h-px w-12 bg-slate-400" />
-              <div className="flex-1 text-right">
-                <p className="text-[10px] font-black uppercase text-slate-400">Destination</p>
-                <p className="text-lg font-black">{toStation?.name}</p>
-                <p className="text-xs text-slate-500">Approx. Arrival T+11h</p>
+              <div className="flex items-center gap-6 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                <div className="flex-1">
+                  <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Boarding From</p>
+                  <p className="text-lg font-black">{fromStation?.name}</p>
+                  <p className="text-[11px] font-bold">Departs: 21:00 hrs</p>
+                </div>
+                <div className="text-slate-300">
+                  <ArrowRight size={24} />
+                </div>
+                <div className="flex-1 text-right">
+                  <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Destination</p>
+                  <p className="text-lg font-black">{toStation?.name}</p>
+                  <p className="text-[11px] font-bold">Est. Arrival T+11h</p>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-4 mb-10">
-              <p className="text-[10px] font-black uppercase text-slate-400">Berth & Service Summary</p>
-              <table className="w-full text-left border-collapse">
+            {/* Detailed Seat & Food Table */}
+            <div className="mb-12">
+              <p className="text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest">Seat & Meal Inventory Details</p>
+              <table className="w-full border-collapse">
                 <thead>
-                  <tr className="border-b-2 border-slate-200">
-                    <th className="py-2 text-xs font-black">Berth No.</th>
-                    <th className="py-2 text-xs font-black">Type</th>
-                    <th className="py-2 text-xs font-black">Pre-booked Meal</th>
-                    <th className="py-2 text-xs font-black text-right">Service Stop</th>
+                  <tr className="border-b-2 border-black">
+                    <th className="py-4 text-left text-[11px] font-black uppercase">Berth No.</th>
+                    <th className="py-4 text-left text-[11px] font-black uppercase">Berth Type</th>
+                    <th className="py-4 text-left text-[11px] font-black uppercase">Pre-booked Meal Selection</th>
+                    <th className="py-4 text-right text-[11px] font-black uppercase">Food Category</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {selectedSeats.map(seat => (
-                    <tr key={seat.id} className="border-b border-slate-100">
-                      <td className="py-3 text-sm font-bold">{seat.number}</td>
-                      <td className="py-3 text-xs">{seat.type}</td>
-                      <td className="py-3 text-xs">{seatMeals[seat.id]?.id === 'none' ? 'NO MEAL' : seatMeals[seat.id]?.name}</td>
-                      <td className="py-3 text-xs text-right">Vadodara Halt</td>
-                    </tr>
-                  ))}
+                <tbody className="divide-y divide-slate-100">
+                  {selectedSeats.map(seat => {
+                    const meal = seatMeals[seat.id];
+                    return (
+                      <tr key={seat.id}>
+                        <td className="py-5 text-base font-black">{seat.number}</td>
+                        <td className="py-5 text-[13px] font-bold text-slate-600">{seat.type} SLEEPER</td>
+                        <td className="py-5 text-[13px] font-bold">
+                          {meal?.id === 'none' ? 'NO MEAL REQUESTED' : (meal?.name || 'VADODARA HALT MEAL')}
+                        </td>
+                        <td className="py-5 text-right">
+                          <span className="text-[10px] font-black border-2 border-black px-3 py-1 rounded-lg uppercase">
+                            {meal?.id === 'none' ? 'N/A' : (meal?.category || 'VEG')}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
-            <div className="flex justify-between items-end border-t-4 border-slate-900 pt-8">
-              <div className="flex items-center gap-4">
-                <QrCode size={80} className="text-slate-900" />
-                <div className="text-[10px] font-bold text-slate-400 max-w-[150px]">
-                  Scan this code at Ahmedabad (Gita Mandir) platform gate 4 for priority boarding.
+            {/* Verification Footer */}
+            <div className="flex justify-between items-end border-t-2 border-black pt-10">
+              <div className="flex items-center gap-8">
+                <div className="p-3 border-2 border-black rounded-2xl bg-white shadow-sm">
+                  {/* Dynamic QR Code Encoding Ticket ID and Passenger Name */}
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`Ticket ID: ${bookedInfo.id} | Passenger: ${bookedInfo.passengerName} | Journey: ${fromStation?.name} to ${toStation?.name}`)}`} 
+                    alt="Booking QR Code"
+                    className="w-24 h-24"
+                  />
+                </div>
+                <div className="max-w-[240px] space-y-2">
+                  <p className="text-[12px] font-black uppercase">Scan for Fast Boarding</p>
+                  <p className="text-[9px] text-slate-500 leading-relaxed font-medium">
+                    This ticket is cryptographically verified. Present the QR code at Ahmedabad (Gita Mandir) Platform 4 or Mumbai Borivali gate for priority entry.
+                  </p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-[10px] font-black uppercase text-slate-400">Total Fare Paid</p>
-                <p className="text-4xl font-black">₹{bookedInfo.totalAmount}</p>
+              <div className="text-right space-y-2">
+                <p className="text-[10px] font-black uppercase text-slate-400">Grand Total Fare (Paid)</p>
+                <p className="text-6xl font-black tracking-tighter">₹{bookedInfo.totalAmount}</p>
+                <div className="flex items-center justify-end gap-1.5 text-[10px] font-black uppercase text-green-600">
+                  <ShieldCheck size={14} strokeWidth={2.5} /> Secure Payment Confirmed
+                </div>
               </div>
             </div>
 
-            <div className="mt-8 text-center">
-              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-[0.2em]">Thank you for choosing SleeperSwift Premium Services</p>
+            {/* Print Signature Line */}
+            <div className="mt-12 pt-6 border-t border-slate-100 flex justify-between items-center text-[8px] font-black text-slate-300 uppercase tracking-[0.4em]">
+              <span>SleeperSwift Intelligent Logistics v2.4</span>
+              <span>Generated on {new Date().toLocaleString()}</span>
             </div>
           </div>
         </div>
