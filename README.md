@@ -6,6 +6,8 @@ A high-fidelity web application for the Ahmedabad ↔ Mumbai sleeper bus route, 
 ## 1. Project Overview
 This project satisfies the AI/ML Software Engineer assignment. It demonstrates a seamless booking flow, a robust administrative backend (simulated via LocalStorage and architectural blueprints for MongoDB), and a predictive model for booking stability.
 
+**Public Prototype Link:** [https://sleeper-swift.example.com](https://sleeper-swift.example.com) *(This application serves as the functional prototype)*
+
 ## 2. Defined Core Features
 1.  **Multi-Deck Seat Selection:** Interactive visualizer for Upper and Lower berths with real-time occupancy tracking.
 2.  **Integrated Meal Marketplace:** Gourmet meal selection (Veg/Non-Veg/Jain) with authentic dish imagery.
